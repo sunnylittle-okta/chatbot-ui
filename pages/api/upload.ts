@@ -3,8 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import formidable from 'formidable';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import puppeteer from 'puppeteer';
 import { runIngestData } from '@/utils/ingest/ingest-data';
-import axios from 'axios';
 
 export const config = {
   api: {
@@ -50,22 +50,26 @@ export default async function handler(
     const hashSum = createHash(`sha1`);
 
     if (formData.links) {
-      const htmlFiles = await Promise.all(
-        formData.links.map(async (link) => {
-          const response = await axios.get(link);
-          return response.data;
-        })
-      );
+      const browser = await puppeteer.launch({ headless: true });
 
-      fileNames.push(...await Promise.all(htmlFiles.map(
-        async (htmlFile, index) => {
-          const fileName = `${index}.html`;
-          const newPath = `${pathToDocs}/${fileName}`;
-          await fs.writeFile(newPath, htmlFile, { encoding: `utf8` });
-          hashSum.update(await fs.readFile(newPath));
-          return fileName;
-        }
-      )));
+      const page = await browser.newPage();
+
+      for (let i = 0; i < formData.links.length; i++) {
+        const link = formData.links[i];
+        const formattedLink = link.startsWith(`http`) ? link : `http://${link}`;
+        await page.goto(formattedLink, { waitUntil: 'networkidle0' });
+        await page.emulateMediaType('screen');
+        const fileName = `result${i}.pdf`;
+        await page.pdf({
+          path: `docs/${fileName}`,
+          margin: {top: '100px', right: '50px', bottom: '100px', left: '50px'},
+          printBackground: true,
+          format: 'A4',
+        });
+        fileNames.push(fileName);
+      }
+
+      await browser.close();
     }
   
     if (formData.pdfs) {
