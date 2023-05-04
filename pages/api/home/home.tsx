@@ -41,6 +41,8 @@ import { HomeInitialState, initialState } from './home.state';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import createTestPlanPrompt = require('templates/Create_Test_Plan.json');
+
 interface Props {
   serverSideApiKeyIsSet: boolean;
   serverSidePluginKeysSet: boolean;
@@ -299,7 +301,20 @@ const Home = ({
 
     const prompts = localStorage.getItem('prompts');
     if (prompts) {
-      dispatch({ field: 'prompts', value: JSON.parse(prompts) });
+      let promptsJson = JSON.parse(prompts);
+      let promptExists = false;
+      promptsJson.forEach((p: any) => {
+        console.log(p.name);
+        console.log(createTestPlanPrompt.name);
+        if (p.name == createTestPlanPrompt.name) promptExists = true;
+      });
+      console.log('exists ' + promptExists);
+      if (!promptExists) {
+        promptsJson.push(createTestPlanPrompt);
+      }
+
+      console.log(promptsJson);
+      dispatch({ field: 'prompts', value: promptsJson });
     }
 
     const conversationHistory = localStorage.getItem('conversationHistory');
